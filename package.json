@@ -1,12 +1,20 @@
 {
-  "name": "DucktiedGrinder",
-  "version": "1.0.50",
+  "name": "ducktied-grinder",
+  "version": "0.1.0",
+  "author": "sealleci",
+  "description": "Retrieve weapons manifest from Atoma Cloud.",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "register": "node commands.js"
   },
   "dependencies": {
-    "elysia": "latest"
+    "discord-interactions": "^3.4.0",
+    "dotenv": "^16.4.5",
+    "elysia": "latest",
+    "https-proxy-agent": "^7.0.4",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "bun-types": "latest"
