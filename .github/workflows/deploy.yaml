@@ -28,7 +28,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         shell: bash
-        run: echo "success=$(npm run register)" >> "$GITHUB_OUTPUT"
+        run: echo "success=$(node ./commands.js)" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Cloudflare worker
         if: steps.register.outputs.success == 'true'
