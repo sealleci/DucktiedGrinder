@@ -22,6 +22,7 @@ async function installGlobalCommands(commands, isProxy = false) {
     const response = await nodeFetch(url, initParams)
 
     if (!response.ok) {
+      console.log(JSON.stringify(await response.json()))
       throw new Error(JSON.stringify(await response.json()))
     } else {
       console.log('true')
