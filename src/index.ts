@@ -36,10 +36,13 @@ async function verifyDiscordRequest(request: IRequest, env: any) {
 
 const router = AutoRouter()
 
-router.get('/', async (_, env) => {
-  // return new Response(`👋 Hello`)
-  return new Response(await getGrindReport(env['ATOMA_ACCOUNT_ID'] ?? '', env['ATOMA_ACCESS_TOKEN'] ?? ''))
+router.get('/', async () => {
+  return new Response(`👋 Hello`)
 })
+
+// router.get('/', async (_, env) => {
+//   return new Response(await getGrindReport(env['ATOMA_ACCOUNT_ID'] ?? '', env['ATOMA_ACCESS_TOKEN'] ?? ''))
+// })
 
 router.post('/interactions', async (request, env) => {
   const { isValid, interaction } = await verifyDiscordRequest(request, env)
