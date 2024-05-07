@@ -29,6 +29,10 @@ jobs:
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         shell: bash
         run: echo "success=$(node ./commands.js)" >> "$GITHUB_OUTPUT"
+      
+      - name: Register bot commands failed
+        if: steps.register.outputs.success == 'false'
+        run: echo "Register bot commands failed"
 
       - name: Publish to Cloudflare worker
         if: steps.register.outputs.success == 'true'
