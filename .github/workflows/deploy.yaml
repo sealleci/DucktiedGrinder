@@ -29,7 +29,7 @@ jobs:
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         shell: bash
         # run: echo "success=$(node ./commands.js)" >> "$GITHUB_OUTPUT"
-        run: node run register
+        run: npm run register
       
       - name: Register bot commands failed branch
         if: steps.register.outputs.success == 'false'
