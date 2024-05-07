@@ -284,7 +284,8 @@ function formatGrindReport(report: GrindReport): string {
     }
 
     const remainingLength = MAX_TEXT_LENGTH - expectedSectionString.length
-    let manifestSectionString: string = '# Manifest\n'
+    const MANIFEST_TITLE: string = '# Manifest\n'
+    let manifestSectionString: string = MANIFEST_TITLE
     let isCompact: boolean = false
 
     while (true) {
@@ -349,6 +350,7 @@ function formatGrindReport(report: GrindReport): string {
             break
         } else {
             if (!isCompact) {
+                manifestSectionString = MANIFEST_TITLE
                 isCompact = true
             } else {
                 manifestSectionString = manifestSectionString.slice(0, remainingLength)
