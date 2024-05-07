@@ -1,0 +1,38 @@
+name: Deploy Discord Bot
+run-name: ${{ github.actor }} is deploying discord bot.
+
+on:
+  push:
+    branches:
+      - worker
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workplace
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Register bot commands
+        id: register
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+        shell: bash
+        run: echo "success=$(npm run register)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Cloudflare worker
+        if: steps.register.outputs.success == 'true'
+        run: npm run publish
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

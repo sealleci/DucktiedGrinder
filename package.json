@@ -1,23 +1,25 @@
 {
   "name": "ducktied-grinder",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "sealleci",
   "description": "Retrieve weapons manifest from Atoma Cloud.",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts",
-    "dev": "bun run --watch src/index.ts",
-    "register": "node commands.js"
+    "start": "wrangler dev",
+    "register": "node ./commands.js",
+    "publish": "wrangler deploy"
   },
   "dependencies": {
     "discord-interactions": "^3.4.0",
-    "dotenv": "^16.4.5",
-    "elysia": "latest",
-    "https-proxy-agent": "^7.0.4",
-    "node-fetch": "^3.3.2"
+    "itty-router": "^5.0.17"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "@cloudflare/workers-types": "^4.20240502.0",
+    "@types/node": "^20.12.8",
+    "https-proxy-agent": "^7.0.4",
+    "node-fetch": "^3.3.2",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.53.1"
   },
   "module": "src/index.js"
 }

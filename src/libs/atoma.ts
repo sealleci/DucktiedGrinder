@@ -1,11 +1,6 @@
 import { lerp, steppedLerp } from './util.ts'
-
-enum CharacterType {
-    ZEALOT = 'zealot',
-    VETERAN = 'veteran',
-    PSYKER = 'psyker',
-    OGRYN = 'ogryn'
-}
+import { CharacterType } from '../types/character.ts'
+import displayNames from '../configs/display_names.ts'
 
 enum ShopType {
     ARMOURY_EXCHANGE = 'credits_store',
@@ -157,20 +152,6 @@ interface GrindReport {
     manifest: { [key in CharacterType]?: GrindReportItem }
 }
 
-interface DisplayNameConfig {
-    [key: string]: {
-        display_name: string
-        description?: string
-    }
-}
-
-interface IdConfig {
-    accountId: string
-    characterId: {
-        [key in CharacterType]: string
-    }
-}
-
 const HIGH_RANK_THRESHOLD = 370
 const MAX_BLESSING_LEVEL = 4
 const CURIO_RARITY_THRESHOLD = 0.7
@@ -271,59 +252,8 @@ function getCurioBlessingDescription(id: string, value: number, rawDescription: 
 }
 
 function formatGrindReport(report: GrindReport): string {
-    let reportString = ''
-
-    reportString += '# Manifest\n'
-
-    let isCharactersExist: boolean = false
-
-    for (const [characterType, reportItem] of Object.entries(report.manifest)) {
-        let curReportString = `## ${getDisplayCharacterIcon(characterType as CharacterType)} ${getDisplayCharacterName(characterType as CharacterType)}\n`
-        let isSectionEmpty: boolean = true
-
-        if (reportItem.highRankWeaponList.length > 0) {
-            isSectionEmpty = false
-            curReportString += `### High Rank\n`
-
-            for (const weapon of reportItem.highRankWeaponList.sort((weapon1, weapon2) => weapon2.baseStats.reduce((x, y) => x + y.value, 0) - weapon1.baseStats.reduce((x, y) => x + y.value, 0))) {
-                curReportString += `- ${getDisplayShopIcon(weapon.shopType)} ${weapon.name}\n`
-                curReportString += `  - 🔷 ${weapon.baseStats.reduce((a, b) => a + b.value, 0)}\n`
-
-                for (const stat of weapon.baseStats.sort((a, b) => b.value - a.value)) {
-                    curReportString += `    - ${stat.value} ${stat.name}\n`
-                }
-
-                if (weapon.blessings.length > 0) {
-                    curReportString += `  - ⭐\n`
-
-                    for (const blessing of weapon.blessings) {
-                        curReportString += `    - ${getDisplayBlessingLevel(blessing.level)} ${blessing.name}\n`
-                    }
-                }
-            }
-        }
-
-        if (reportItem.curioList.length > 0) {
-            isSectionEmpty = false
-            curReportString += `### Curios\n`
-
-            for (const curio of reportItem.curioList) {
-                curReportString += `- ${getDisplayShopIcon(curio.shopType)} ${curio.blessing.description}\n`
-            }
-        }
-
-        if (!isSectionEmpty) {
-            isCharactersExist = true
-            reportString += curReportString
-        }
-    }
-
-    if (!isCharactersExist) {
-        reportString += '😴 Nothing ...\n'
-    }
-
-    reportString += `# Expected\n`
-
+    const MAX_TEXT_LENGTH: number = 2000
+    let expectedSectionString: string = '# Expected\n'
     let isExpectedExist: boolean = false
 
     for (const [weaponName, weaponList] of Object.entries(report.expectedWeapons)) {
@@ -331,25 +261,103 @@ function formatGrindReport(report: GrindReport): string {
 
         if (filteredWeaponList.length > 0) {
             isExpectedExist = true
-            reportString += `## ${weaponName}\n`
+            expectedSectionString += `## ${weaponName}\n`
 
             for (const expectedWeapon of filteredWeaponList) {
-                reportString += `- ${getDisplayCharacterName(expectedWeapon.rejectType as CharacterType)}: ${getDisplayShopIcon(expectedWeapon.weapon.shopType)}\n`
+                expectedSectionString += `- ${getDisplayCharacterName(expectedWeapon.rejectType as CharacterType)}: ${getDisplayShopIcon(expectedWeapon.weapon.shopType)}\n`
 
                 for (const blessing of expectedWeapon.weapon.blessings) {
                     const isExpectedBlessing: string = EXPECTED_BLESSING_ID_LIST.find(blessingId => blessingId === blessing.id) !== undefined && blessing.level >= MAX_BLESSING_LEVEL ? `${getDisplayBool(true)} ` : ''
 
-                    reportString += `  - ${isExpectedBlessing}${getDisplayBlessingLevel(blessing.level)} ${blessing.name}\n`
+                    expectedSectionString += `  - ${isExpectedBlessing}${getDisplayBlessingLevel(blessing.level)} ${blessing.name}\n`
                 }
             }
         }
     }
 
     if (!isExpectedExist) {
-        reportString += '😴 Nothing ...\n'
+        expectedSectionString += '😴 Nothing ...\n'
     }
 
-    return reportString
+    if (expectedSectionString.length >= MAX_TEXT_LENGTH) {
+        return expectedSectionString.slice(0, MAX_TEXT_LENGTH)
+    }
+
+    const remainingLength = MAX_TEXT_LENGTH - expectedSectionString.length
+    let manifestSectionString: string = '# Manifest\n'
+    let isCompact: boolean = false
+
+    while (true) {
+        let isCharactersExist: boolean = false
+
+        for (const [characterType, reportItem] of Object.entries(report.manifest)) {
+            let curSectionString = `## ${getDisplayCharacterIcon(characterType as CharacterType)} ${getDisplayCharacterName(characterType as CharacterType)}\n`
+            let isSectionEmpty: boolean = true
+
+            if (reportItem.highRankWeaponList.length > 0) {
+                isSectionEmpty = false
+                curSectionString += `### High Rank\n`
+
+                for (const weapon of reportItem.highRankWeaponList.sort((weapon1, weapon2) => weapon2.baseStats.reduce((x, y) => x + y.value, 0) - weapon1.baseStats.reduce((x, y) => x + y.value, 0))) {
+                    curSectionString += `- ${getDisplayShopIcon(weapon.shopType)} ${weapon.name}\n`
+                    curSectionString += `  - 🔷 ${weapon.baseStats.reduce((a, b) => a + b.value, 0)}\n`
+
+                    for (const stat of weapon.baseStats.sort((a, b) => b.value - a.value)) {
+                        curSectionString += `    - ${stat.value} ${stat.name}\n`
+                    }
+
+                    if (weapon.blessings.length > 0) {
+                        curSectionString += `  - ⭐\n`
+
+                        for (const blessing of weapon.blessings) {
+                            curSectionString += `    - ${getDisplayBlessingLevel(blessing.level)} ${blessing.name}\n`
+                        }
+                    }
+
+                    if (isCompact) {
+                        // just show one item if compact
+                        break
+                    }
+                }
+            }
+
+            if (reportItem.curioList.length > 0) {
+                isSectionEmpty = false
+                curSectionString += `### Curios\n`
+
+                for (const curio of reportItem.curioList) {
+                    curSectionString += `- ${getDisplayShopIcon(curio.shopType)} ${curio.blessing.description}\n`
+
+                    if (isCompact) {
+                        // just show one item if compact
+                        break
+                    }
+                }
+            }
+
+            if (!isSectionEmpty) {
+                isCharactersExist = true
+                manifestSectionString += curSectionString
+            }
+        }
+
+        if (!isCharactersExist) {
+            manifestSectionString += '😴 Nothing ...\n'
+        }
+
+        if (manifestSectionString.length <= remainingLength) {
+            break
+        } else {
+            if (!isCompact) {
+                isCompact = true
+            } else {
+                manifestSectionString = manifestSectionString.slice(0, remainingLength)
+                break
+            }
+        }
+    }
+
+    return manifestSectionString + expectedSectionString
 }
 
 async function retrieveWeaponsManifest(
@@ -377,8 +385,7 @@ async function retrieveRejectReport(
     accessToken: string,
     characterType: CharacterType,
     accountId: string,
-    characterId: string,
-    displayNames: DisplayNameConfig
+    characterId: string
 ): Promise<GrindReportItem | null> {
     const reportItem: GrindReportItem = {
         expectedWeaponList: {},
@@ -387,7 +394,7 @@ async function retrieveRejectReport(
     }
 
     for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
-        reportItem.expectedWeaponList[displayNames[weaponId]['display_name']] = []
+        reportItem.expectedWeaponList[displayNames[weaponId]['display_name'] ?? ''] = []
     }
 
     let isRetrieved: boolean = false
@@ -403,14 +410,14 @@ async function retrieveRejectReport(
 
         const weaponList: WeaponInstance[] = manifest.personal.filter((item) => item.description.type === ManifestItemType.WEAPON).map((item) => ({
             id: item.description.id,
-            name: displayNames[item.description.id]['display_name'],
-            baseStats: item.description.overrides.base_stats ? item.description.overrides.base_stats.map((desc) => ({ name: displayNames[desc.name]['display_name'], value: Math.round(desc.value * 100) })) : [],
-            blessings: item.description.overrides.traits.map((trait) => ({ id: trait.id, name: displayNames[trait.id]['display_name'], level: trait.rarity })),
+            name: displayNames[item.description.id]['display_name'] ?? '',
+            baseStats: item.description.overrides.base_stats ? item.description.overrides.base_stats.map((desc) => ({ name: displayNames[desc.name]['display_name'] ?? '', value: Math.round(desc.value * 100) })) : [],
+            blessings: item.description.overrides.traits.map((trait) => ({ id: trait.id, name: displayNames[trait.id]['display_name'] ?? '', level: trait.rarity })),
             shopType: shopType
         }))
 
         for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
-            const weaponName: string = displayNames[weaponId]['display_name']
+            const weaponName: string = displayNames[weaponId]['display_name'] ?? ''
 
             reportItem.expectedWeaponList[weaponName] = reportItem.expectedWeaponList[weaponName].concat(weaponList.filter((item) => item.id === weaponId))
         }
@@ -426,18 +433,65 @@ async function retrieveRejectReport(
     return isRetrieved ? reportItem : null
 }
 
-async function getGrindReport(accessToken: string): Promise<string> {
-    try {
-        const ids = (await Bun.file('./configs/ids.json', { type: "application/json" }).json()) as IdConfig
-        const displayNames = (await Bun.file('./configs/display_names.json', { type: "application/json" }).json()) as DisplayNameConfig
+interface CharacterSummaryItem {
+    id: string
+    name: string
+    gender: string
+    archetype: string
+    specialization: string
+    level: number
+}
 
+interface CharacterSummary {
+    _links: {
+        self: {
+            href: string
+        }
+    }
+    username: string
+    name: string
+    discriminator: string
+    allowRename: boolean
+    email: {
+        verified: boolean
+    }
+    linkedAccounts: Record<string, string>
+    marketingPreferences: Record<string, boolean>
+    characters: CharacterSummaryItem[]
+}
+
+type CharacterIds = Partial<Record<CharacterType, string>>
+
+async function getCharacterIds(accountId: string, accessToken: string): Promise<CharacterIds> {
+    const url = `https://bsp-td-prod.atoma.cloud/web/${accountId}/summary`
+    const characterIds: CharacterIds = {}
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    })
+
+    if (response.ok) {
+        const summary = (await response.json()) as CharacterSummary
+
+        for (const character of summary.characters) {
+            characterIds[character.archetype as CharacterType] = character.id
+        }
+    }
+
+    return characterIds
+}
+
+async function getGrindReport(accountId: string, accessToken: string): Promise<string> {
+    try {
         const report: GrindReport = {
             expectedWeapons: {},
             manifest: {}
         }
 
         const characterTypeList = Object.values(CharacterType)
-        const reportItemList = await Promise.all(characterTypeList.map((rejectType) => retrieveRejectReport(accessToken, rejectType, ids.accountId, ids.characterId[rejectType], displayNames)))
+        const characterIds = await getCharacterIds(accountId, accessToken)
+        const reportItemList = await Promise.all(characterTypeList.map((rejectType) => retrieveRejectReport(accessToken, rejectType, accountId, characterIds[rejectType] ?? '')))
 
         for (let i = 0; i < characterTypeList.length; i += 1) {
             const reportItem = reportItemList[i]
@@ -448,7 +502,7 @@ async function getGrindReport(accessToken: string): Promise<string> {
         }
 
         for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
-            const weaponName: string = displayNames[weaponId]['display_name']
+            const weaponName: string = displayNames[weaponId]['display_name'] ?? ''
 
             report.expectedWeapons[weaponName] = []
 

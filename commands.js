@@ -1,13 +1,11 @@
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import nodeFetch from 'node-fetch'
-import 'dotenv/config'
 
-async function installGlobalCommands(appId, commands) {
+async function installGlobalCommands(commands, isProxy = false) {
   try {
-    const endpoint = `applications/${appId}/commands`
+    const endpoint = `applications/${process.env['DISCORD_APP_ID']}/commands`
     const url = `https://discord.com/api/v10/${endpoint}`
-
-    const response = await nodeFetch(url, {
+    const initParams = {
       headers: {
         Authorization: `Bot ${process.env['DISCORD_TOKEN'] ?? ''}`,
         'Content-Type': 'application/json; charset=UTF-8',
@@ -15,17 +13,21 @@ async function installGlobalCommands(appId, commands) {
       },
       method: 'PUT',
       body: JSON.stringify(commands),
-      agent: new HttpsProxyAgent('http://127.0.0.1:7890')
-    })
+    }
+
+    if (isProxy) {
+      initParams['agent'] = new HttpsProxyAgent('http://127.0.0.1:7890')
+    }
+
+    const response = await nodeFetch(url, initParams)
 
     if (!response.ok) {
-      console.log(response.status)
       throw new Error(JSON.stringify(await response.json()))
     } else {
-      console.log("Put discord request successfully")
+      console.log('true')
     }
-  } catch (_error) {
-    console.error(_error)
+  } catch (_) {
+    console.log('false')
   }
 }
 
@@ -39,6 +41,12 @@ const GRIND_COMMAND = {
       "description": "The access token",
       "type": 3,
       "required": true
+    },
+    {
+      "name": "accountId",
+      "description": "The account id",
+      "type": 3,
+      "required": false
     }
   ]
 }
@@ -46,5 +54,7 @@ const GRIND_COMMAND = {
 const ALL_COMMANDS = [GRIND_COMMAND];
 
 (async () => {
-  await installGlobalCommands(process.env['APP_ID'], ALL_COMMANDS)
+  const isProxy = process.argv.includes('--proxy')
+
+  await installGlobalCommands(ALL_COMMANDS, isProxy)
 })()
