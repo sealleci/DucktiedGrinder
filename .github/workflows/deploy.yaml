@@ -7,8 +7,8 @@ on:
       - worker
 
 jobs:
-
-  release:
+  deploy:
+    environment: deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout workplace
@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: echo "success=$(node ./commands.js)" >> "$GITHUB_OUTPUT"
       
-      - name: Register bot commands failed
+      - name: Register bot commands failed branch
         if: steps.register.outputs.success == 'false'
         run: echo "Register bot commands failed"
 
