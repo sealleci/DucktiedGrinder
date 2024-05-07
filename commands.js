@@ -55,6 +55,6 @@ const ALL_COMMANDS = [GRIND_COMMAND];
 
 (async () => {
   const isProxy = process.argv.includes('--proxy')
-
+  console.log(`env: ${process.env['DISCORD_APP_ID']}`)
   await installGlobalCommands(ALL_COMMANDS, isProxy)
 })()
