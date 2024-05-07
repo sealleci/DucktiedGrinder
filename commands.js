@@ -22,7 +22,6 @@ async function installGlobalCommands(commands, isProxy = false) {
     const response = await nodeFetch(url, initParams)
 
     if (!response.ok) {
-      console.log(JSON.stringify(await response.json()))
       throw new Error(JSON.stringify(await response.json()))
     } else {
       console.log('true')
@@ -44,7 +43,7 @@ const GRIND_COMMAND = {
       "required": true
     },
     {
-      "name": "accountId",
+      "name": "id",
       "description": "The account id",
       "type": 3,
       "required": false
@@ -55,7 +54,6 @@ const GRIND_COMMAND = {
 const ALL_COMMANDS = [GRIND_COMMAND];
 
 (async () => {
-  const isProxy = process.argv.includes('--proxy')
-  console.log(`env: ${process.env['DISCORD_APP_ID']}`)
+  const isProxy = process.argv.includes('--isproxy')
   await installGlobalCommands(ALL_COMMANDS, isProxy)
 })()
