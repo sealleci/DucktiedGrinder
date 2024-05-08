@@ -1,12 +1,12 @@
 {
   "name": "ducktied-grinder",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "sealleci",
   "description": "Retrieve weapons manifest from Atoma Cloud.",
   "type": "module",
   "scripts": {
     "start": "wrangler dev",
-    "register": "node ./commands.js",
+    "register": "node ./commands.js --isproxy",
     "publish": "wrangler deploy"
   },
   "dependencies": {

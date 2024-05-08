@@ -152,6 +152,35 @@ interface GrindReport {
     manifest: { [key in CharacterType]?: GrindReportItem }
 }
 
+interface CharacterSummaryItem {
+    id: string
+    name: string
+    gender: string
+    archetype: string
+    specialization: string
+    level: number
+}
+
+interface CharacterSummary {
+    _links: {
+        self: {
+            href: string
+        }
+    }
+    username: string
+    name: string
+    discriminator: string
+    allowRename: boolean
+    email: {
+        verified: boolean
+    }
+    linkedAccounts: Record<string, string>
+    marketingPreferences: Record<string, boolean>
+    characters: CharacterSummaryItem[]
+}
+
+type CharacterIds = Partial<Record<CharacterType, string>>
+
 const HIGH_RANK_THRESHOLD = 370
 const MAX_BLESSING_LEVEL = 4
 const CURIO_RARITY_THRESHOLD = 0.7
@@ -249,6 +278,99 @@ function getCurioBlessingDescription(id: string, value: number, rawDescription: 
     }
 
     return rawDescription.replace(/\{.+?\}/g, calculateGadgetTraitStrength(id, value))
+}
+
+async function getCharacterIds(accountId: string, accessToken: string): Promise<CharacterIds> {
+    const url = `https://bsp-td-prod.atoma.cloud/web/${accountId}/summary`
+    const characterIds: CharacterIds = {}
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    })
+
+    if (response.ok) {
+        const summary = (await response.json()) as CharacterSummary
+
+        for (const character of summary.characters) {
+            characterIds[character.archetype as CharacterType] = character.id
+        }
+    }
+
+    return characterIds
+}
+
+async function retrieveWeaponsManifest(
+    accessToken: string,
+    characterType: CharacterType,
+    shopType: ShopType,
+    accountId: string,
+    characterId: string
+): Promise<Manifest | null> {
+    const url = `https://bsp-td-prod.atoma.cloud/store/storefront/${shopType}_${characterType}?accountId=${accountId}&personal=true&characterId=${characterId}`
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    })
+
+    if (!response.ok) {
+        return null
+    }
+
+    return (await response.json()) as Manifest
+}
+
+async function retrieveRejectReport(
+    accessToken: string,
+    characterType: CharacterType,
+    accountId: string,
+    characterId: string
+): Promise<GrindReportItem | null> {
+    const reportItem: GrindReportItem = {
+        expectedWeaponList: {},
+        highRankWeaponList: [],
+        curioList: []
+    }
+
+    for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
+        reportItem.expectedWeaponList[displayNames[weaponId]['display_name'] ?? ''] = []
+    }
+
+    let isRetrieved: boolean = false
+
+    for (const shopType of Object.values(ShopType)) {
+        const manifest = await retrieveWeaponsManifest(accessToken, characterType, shopType, accountId, characterId)
+
+        if (manifest === null) {
+            continue
+        }
+
+        isRetrieved = true
+
+        const weaponList: WeaponInstance[] = manifest.personal.filter((item) => item.description.type === ManifestItemType.WEAPON).map((item) => ({
+            id: item.description.id,
+            name: displayNames[item.description.id]['display_name'] ?? '',
+            baseStats: item.description.overrides.base_stats ? item.description.overrides.base_stats.map((desc) => ({ name: displayNames[desc.name]['display_name'] ?? '', value: Math.round(desc.value * 100) })) : [],
+            blessings: item.description.overrides.traits.map((trait) => ({ id: trait.id, name: displayNames[trait.id]['display_name'] ?? '', level: trait.rarity })),
+            shopType: shopType
+        }))
+
+        for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
+            const weaponName: string = displayNames[weaponId]['display_name'] ?? ''
+
+            reportItem.expectedWeaponList[weaponName] = reportItem.expectedWeaponList[weaponName].concat(weaponList.filter((item) => item.id === weaponId))
+        }
+
+        reportItem.highRankWeaponList = reportItem.highRankWeaponList.concat(weaponList.filter((item) => item.baseStats.reduce((a, b) => a + b.value, 0) >= HIGH_RANK_THRESHOLD))
+
+        reportItem.curioList = reportItem.curioList.concat(manifest.personal.filter((item) => item.description.type === ManifestItemType.GADGET && (item.description.overrides.traits[0].value ?? 0.0) >= CURIO_RARITY_THRESHOLD).map((item) => ({
+            blessing: item.description.overrides.traits.map((trait) => ({ description: getCurioBlessingDescription(trait.id, trait.value ?? 0.0, displayNames[trait.id]['description'] ?? '') }))[0],
+            shopType: shopType
+        })))
+    }
+
+    return isRetrieved ? reportItem : null
 }
 
 function formatGrindReport(report: GrindReport): string {
@@ -360,128 +482,6 @@ function formatGrindReport(report: GrindReport): string {
     }
 
     return manifestSectionString + expectedSectionString
-}
-
-async function retrieveWeaponsManifest(
-    accessToken: string,
-    characterType: CharacterType,
-    shopType: ShopType,
-    accountId: string,
-    characterId: string
-): Promise<Manifest | null> {
-    const url = `https://bsp-td-prod.atoma.cloud/store/storefront/${shopType}_${characterType}?accountId=${accountId}&personal=true&characterId=${characterId}`
-    const response = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`
-        }
-    })
-
-    if (!response.ok) {
-        return null
-    }
-
-    return (await response.json()) as Manifest
-}
-
-async function retrieveRejectReport(
-    accessToken: string,
-    characterType: CharacterType,
-    accountId: string,
-    characterId: string
-): Promise<GrindReportItem | null> {
-    const reportItem: GrindReportItem = {
-        expectedWeaponList: {},
-        highRankWeaponList: [],
-        curioList: []
-    }
-
-    for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
-        reportItem.expectedWeaponList[displayNames[weaponId]['display_name'] ?? ''] = []
-    }
-
-    let isRetrieved: boolean = false
-
-    for (const shopType of Object.values(ShopType)) {
-        const manifest = await retrieveWeaponsManifest(accessToken, characterType, shopType, accountId, characterId)
-
-        if (manifest === null) {
-            continue
-        }
-
-        isRetrieved = true
-
-        const weaponList: WeaponInstance[] = manifest.personal.filter((item) => item.description.type === ManifestItemType.WEAPON).map((item) => ({
-            id: item.description.id,
-            name: displayNames[item.description.id]['display_name'] ?? '',
-            baseStats: item.description.overrides.base_stats ? item.description.overrides.base_stats.map((desc) => ({ name: displayNames[desc.name]['display_name'] ?? '', value: Math.round(desc.value * 100) })) : [],
-            blessings: item.description.overrides.traits.map((trait) => ({ id: trait.id, name: displayNames[trait.id]['display_name'] ?? '', level: trait.rarity })),
-            shopType: shopType
-        }))
-
-        for (const weaponId of EXPECTED_WEAPON_ID_LIST) {
-            const weaponName: string = displayNames[weaponId]['display_name'] ?? ''
-
-            reportItem.expectedWeaponList[weaponName] = reportItem.expectedWeaponList[weaponName].concat(weaponList.filter((item) => item.id === weaponId))
-        }
-
-        reportItem.highRankWeaponList = reportItem.highRankWeaponList.concat(weaponList.filter((item) => item.baseStats.reduce((a, b) => a + b.value, 0) >= HIGH_RANK_THRESHOLD))
-
-        reportItem.curioList = reportItem.curioList.concat(manifest.personal.filter((item) => item.description.type === ManifestItemType.GADGET && (item.description.overrides.traits[0].value ?? 0.0) >= CURIO_RARITY_THRESHOLD).map((item) => ({
-            blessing: item.description.overrides.traits.map((trait) => ({ description: getCurioBlessingDescription(trait.id, trait.value ?? 0.0, displayNames[trait.id]['description'] ?? '') }))[0],
-            shopType: shopType
-        })))
-    }
-
-    return isRetrieved ? reportItem : null
-}
-
-interface CharacterSummaryItem {
-    id: string
-    name: string
-    gender: string
-    archetype: string
-    specialization: string
-    level: number
-}
-
-interface CharacterSummary {
-    _links: {
-        self: {
-            href: string
-        }
-    }
-    username: string
-    name: string
-    discriminator: string
-    allowRename: boolean
-    email: {
-        verified: boolean
-    }
-    linkedAccounts: Record<string, string>
-    marketingPreferences: Record<string, boolean>
-    characters: CharacterSummaryItem[]
-}
-
-type CharacterIds = Partial<Record<CharacterType, string>>
-
-async function getCharacterIds(accountId: string, accessToken: string): Promise<CharacterIds> {
-    const url = `https://bsp-td-prod.atoma.cloud/web/${accountId}/summary`
-    const characterIds: CharacterIds = {}
-    const response = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`
-        }
-    })
-
-    if (response.ok) {
-        const summary = (await response.json()) as CharacterSummary
-
-        for (const character of summary.characters) {
-            characterIds[character.archetype as CharacterType] = character.id
-        }
-    }
-
-    return characterIds
 }
 
 async function getGrindReport(accountId: string, accessToken: string): Promise<string> {

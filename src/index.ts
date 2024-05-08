@@ -6,7 +6,7 @@ import type { DiscordCommandOption, DiscordCommandOptionType, DiscordCommand } f
 
 class JsonResponse extends Response {
   constructor(body: any, init?: any) {
-    const jsonBody = JSON.stringify(body);
+    const jsonBody = JSON.stringify(body)
     init = init || {
       headers: {
         'content-type': 'application/json;charset=UTF-8',
@@ -48,7 +48,7 @@ router.post('/interactions', async (request, env) => {
   const { isValid, interaction } = await verifyDiscordRequest(request, env)
 
   if (!isValid || !interaction) {
-    return new Response('Bad request signature.', { status: 401 });
+    return new Response('Bad request signature.', { status: 401 })
   }
 
   if (interaction.type === InteractionType.PING) {

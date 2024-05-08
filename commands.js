@@ -3,11 +3,13 @@ import nodeFetch from 'node-fetch'
 
 async function installGlobalCommands(commands, isProxy = false) {
   try {
-    const endpoint = `applications/${process.env['DISCORD_APP_ID']}/commands`
+    const DISCORD_APP_ID = process.env['DISCORD_APP_ID']
+    const DISCORD_TOKEN = process.env['DISCORD_TOKEN']
+    const endpoint = `applications/${DISCORD_APP_ID ? DISCORD_APP_ID : ''}/commands`
     const url = `https://discord.com/api/v10/${endpoint}`
     const initParams = {
       headers: {
-        Authorization: `Bot ${process.env['DISCORD_TOKEN'] ?? ''}`,
+        Authorization: `Bot ${DISCORD_TOKEN ? DISCORD_TOKEN : ''}`,
         'Content-Type': 'application/json; charset=UTF-8',
         'User-Agent': 'DiscordBot',
       },
@@ -37,16 +39,16 @@ const GRIND_COMMAND = {
   type: 1,
   options: [
     {
-      "name": "token",
-      "description": "The access token",
-      "type": 3,
-      "required": true
+      'name': 'token',
+      'description': 'The access token',
+      'type': 3,
+      'required': true
     },
     {
-      "name": "id",
-      "description": "The account id",
-      "type": 3,
-      "required": false
+      'name': 'id',
+      'description': 'The account id',
+      'type': 3,
+      'required': false
     }
   ]
 }
